@@ -23,27 +23,48 @@ namespace SmartVault.DataGeneration
 
             using (var connection = new SQLiteConnection(string.Format(configuration?["ConnectionStrings:DefaultConnection"] ?? "", configuration?["DatabaseFileName"])))
             {
-                var files = Directory.GetFiles(@"..\..\..\..\BusinessObjectSchema");
+                connection.Open();
+                var files = Directory.GetFiles(@"../BusinessObjectSchema");
                 for (int i = 0; i <= 2; i++)
                 {
                     var serializer = new XmlSerializer(typeof(BusinessObject));
                     var businessObject = serializer.Deserialize(new StreamReader(files[i])) as BusinessObject;
-                    connection.Execute(businessObject?.Script);
+                    connection.ExecuteAsync(businessObject?.Script);
 
                 }
                 var documentNumber = 0;
-                for (int i = 0; i < 100; i++)
-                {
-                    var randomDayIterator = RandomDay().GetEnumerator();
-                    randomDayIterator.MoveNext();
-                    connection.Execute($"INSERT INTO User (Id, FirstName, LastName, DateOfBirth, AccountId, Username, Password) VALUES('{i}','FName{i}','LName{i}','{randomDayIterator.Current.ToString("yyyy-MM-dd")}','{i}','UserName-{i}','e10adc3949ba59abbe56e057f20f883e')");
-                    connection.Execute($"INSERT INTO Account (Id, Name) VALUES('{i}','Account{i}')");
 
-                    for (int d = 0; d < 10000; d++, documentNumber++)
+                using (var transaction = connection.BeginTransaction())
+                {
+                    for (int i = 0; i < 100; i++)
                     {
+                        var randomDayIterator = RandomDay().GetEnumerator();
+                        randomDayIterator.MoveNext();
+                        connection.ExecuteAsync($"INSERT INTO User (Id, FirstName, LastName, DateOfBirth, AccountId, Username, Password) VALUES('{i}','FName{i}','LName{i}','{randomDayIterator.Current.ToString("yyyy-MM-dd")}','{i}','UserName-{i}','e10adc3949ba59abbe56e057f20f883e')");
+                        connection.ExecuteAsync($"INSERT INTO Account (Id, Name) VALUES('{i}','Account{i}')");
+
+                        var command = connection.CreateCommand();
+                        command.CommandText = @"INSERT INTO Document (Id, Name, FilePath, Length, AccountId) VALUES(@Id, @Name, @FilePath, @Length, @AccountId)";
+                        
+                        command.Parameters.Add(new SQLiteParameter("@Id", System.Data.DbType.Int32));
+                        command.Parameters.Add(new SQLiteParameter("@Name", System.Data.DbType.String));
+                        command.Parameters.Add(new SQLiteParameter("@FilePath", System.Data.DbType.String));
+                        command.Parameters.Add(new SQLiteParameter("@Length", System.Data.DbType.Int64));
+                        command.Parameters.Add(new SQLiteParameter("@AccountId", System.Data.DbType.Int32));
+
                         var documentPath = new FileInfo("TestDoc.txt").FullName;
-                        connection.Execute($"INSERT INTO Document (Id, Name, FilePath, Length, AccountId) VALUES('{documentNumber}','Document{i}-{d}.txt','{documentPath}','{new FileInfo(documentPath).Length}','{i}')");
+                        
+                        for (int d = 0; d < 10000; d++, documentNumber++)
+                        {
+                            command.Parameters["@Id"].Value = documentNumber;
+                            command.Parameters["@Name"].Value = $"Document{i}-{d}.txt";
+                            command.Parameters["@FilePath"].Value = documentPath;
+                            command.Parameters["@Length"].Value = new FileInfo(documentPath).Length;
+                            command.Parameters["@AccountId"].Value = i;
+                            command.ExecuteNonQueryAsync();
+                        }                    
                     }
+                    transaction.Commit();
                 }
 
                 var accountData = connection.Query("SELECT COUNT(*) FROM Account;");
