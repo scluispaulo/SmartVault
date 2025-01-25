@@ -19,7 +19,24 @@ namespace SmartVault.Program
 
         private static void GetAllFileSizes()
         {
-            // TODO: Implement functionality
+            var totalSize = 0L;
+            using (var conn = new SQLiteConnection("Data Source=C:..\\SmartVault.DataGeneration\\bin\\Debug\\net5.0\\testdb.sqlite"))
+            {
+                conn.Open();
+                var command = conn.CreateCommand();
+                command.CommandText = @"SELECT FilePath FROM Document";
+
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        var filePath = reader.GetString(0);
+                        totalSize += new FileInfo(filePath).Length;
+                    }
+                }
+            }
+
+            Console.WriteLine($"Total size of all files: {totalSize}");
         }
 
         // go to the third file from an accountId and check if the file contains the text "Smith Property", if so, write it to a single file
