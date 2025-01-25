@@ -13,6 +13,22 @@ namespace SmartVault.Program
                 return;
             }
 
+            var oauthIntegration = new OAuthIntegration(
+                clientId: "clientId",
+                clientSecret: "clientSecret",
+                authorizationEndpoint: "https://oauth-provider.com/authorize",
+                tokenEndpoint: "https://oauth-provider.com/token",
+                redirectUri: "http://localhost/callback"
+            );
+
+            oauthIntegration.Authenticate();
+
+            if (!oauthIntegration.IsAuthenticated)
+            {
+                Console.WriteLine("You must authenticate first before proceeding.");
+                return;
+            }
+
             WriteEveryThirdFileToFile(args[0]);
             GetAllFileSizes();
         }
