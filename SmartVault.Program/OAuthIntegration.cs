@@ -2,7 +2,7 @@
 
 namespace SmartVault.Program
 {
-    public class OAuthIntegration
+    public class OAuthIntegration : IOAuthIntegration
     {
         public string ClientId { get; set; }
         public string ClientSecret { get; set; }
