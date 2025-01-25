@@ -24,7 +24,7 @@ namespace SmartVault.DataGeneration
             using (var connection = new SQLiteConnection(string.Format(configuration?["ConnectionStrings:DefaultConnection"] ?? "", configuration?["DatabaseFileName"])))
             {
                 connection.Open();
-                var files = Directory.GetFiles(@"../BusinessObjectSchema");
+                var files = Directory.GetFiles(@"../../../../BusinessObjectSchema");
                 for (int i = 0; i <= 2; i++)
                 {
                     var serializer = new XmlSerializer(typeof(BusinessObject));
@@ -40,17 +40,20 @@ namespace SmartVault.DataGeneration
                     {
                         var randomDayIterator = RandomDay().GetEnumerator();
                         randomDayIterator.MoveNext();
-                        connection.ExecuteAsync($"INSERT INTO User (Id, FirstName, LastName, DateOfBirth, AccountId, Username, Password) VALUES('{i}','FName{i}','LName{i}','{randomDayIterator.Current.ToString("yyyy-MM-dd")}','{i}','UserName-{i}','e10adc3949ba59abbe56e057f20f883e')");
-                        connection.ExecuteAsync($"INSERT INTO Account (Id, Name) VALUES('{i}','Account{i}')");
+                        connection.ExecuteAsync($"INSERT INTO User (Id, FirstName, LastName, DateOfBirth, AccountId, Username, Password, CreatedOn) " +
+                            $"VALUES('{i}','FName{i}','LName{i}','{randomDayIterator.Current.ToString("yyyy-MM-dd")}','{i}','UserName-{i}','e10adc3949ba59abbe56e057f20f883e', '{randomDayIterator.Current.ToString("yyyy-MM-dd")}')");
+                        
+                        connection.ExecuteAsync($"INSERT INTO Account (Id, Name, CreatedOn) VALUES('{i}','Account{i}', '{randomDayIterator.Current.ToString("yyyy-MM-dd")}')");
 
                         var command = connection.CreateCommand();
-                        command.CommandText = @"INSERT INTO Document (Id, Name, FilePath, Length, AccountId) VALUES(@Id, @Name, @FilePath, @Length, @AccountId)";
+                        command.CommandText = @"INSERT INTO Document (Id, Name, FilePath, Length, AccountId, CreatedOn) VALUES(@Id, @Name, @FilePath, @Length, @AccountId, @CreatedOn)";
                         
                         command.Parameters.Add(new SQLiteParameter("@Id", System.Data.DbType.Int32));
                         command.Parameters.Add(new SQLiteParameter("@Name", System.Data.DbType.String));
                         command.Parameters.Add(new SQLiteParameter("@FilePath", System.Data.DbType.String));
                         command.Parameters.Add(new SQLiteParameter("@Length", System.Data.DbType.Int64));
                         command.Parameters.Add(new SQLiteParameter("@AccountId", System.Data.DbType.Int32));
+                        command.Parameters.Add(new SQLiteParameter("@CreatedOn", System.Data.DbType.String));
 
                         var documentPath = new FileInfo("TestDoc.txt").FullName;
                         
@@ -61,6 +64,7 @@ namespace SmartVault.DataGeneration
                             command.Parameters["@FilePath"].Value = documentPath;
                             command.Parameters["@Length"].Value = new FileInfo(documentPath).Length;
                             command.Parameters["@AccountId"].Value = i;
+                            command.Parameters["@CreatedOn"].Value = randomDayIterator.Current.ToString("yyyy-MM-dd");
                             command.ExecuteNonQueryAsync();
                         }                    
                     }
